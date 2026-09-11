@@ -8,7 +8,8 @@ RUN apk add --no-cache \
     freetype \
     harfbuzz \
     ca-certificates \
-    ttf-freefont
+    ttf-freefont && \
+    ln -sf /usr/bin/chromium /usr/bin/chromium-browser 2>/dev/null || true
 
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
@@ -21,6 +22,9 @@ RUN npm ci --only=production && npm cache clean --force
 
 # Copy source code and public assets
 COPY . .
+
+# Ensure cache directory exists and node user owns /app
+RUN mkdir -p /app/.cache/puppeteer && chown -R node:node /app
 
 # Set environment variables
 ENV NODE_ENV=production

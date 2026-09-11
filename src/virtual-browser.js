@@ -1,7 +1,7 @@
 const puppeteer = require('puppeteer');
 const { URL } = require('node:url');
 const { validateHostnameAndResolve } = require('./url-validator');
-const { findSystemBrowserExecutable } = require('./browser-runner');
+const { resolveBrowserExecutable, findSystemBrowserExecutable } = require('./browser-resolver');
 
 let sharedBrowser = null;
 let browserLaunchPromise = null;
@@ -31,24 +31,29 @@ async function getSharedBrowser() {
     ]
   };
 
-  const systemExecutable = findSystemBrowserExecutable();
-  if (systemExecutable) {
-    launchOptions.executablePath = systemExecutable;
-  }
+  browserLaunchPromise = (async () => {
+    try {
+      const executablePath = await resolveBrowserExecutable();
+      if (executablePath) {
+        launchOptions.executablePath = executablePath;
+        console.log(`[Virtual Browser] Launching Chromium with executable: ${executablePath}`);
+      }
 
-  browserLaunchPromise = puppeteer.launch(launchOptions).then(b => {
-    sharedBrowser = b;
-    browserLaunchPromise = null;
+      const b = await puppeteer.launch(launchOptions);
+      sharedBrowser = b;
+      browserLaunchPromise = null;
 
-    b.on('disconnected', () => {
-      sharedBrowser = null;
-    });
+      b.on('disconnected', () => {
+        sharedBrowser = null;
+      });
 
-    return b;
-  }).catch(err => {
-    browserLaunchPromise = null;
-    throw err;
-  });
+      return b;
+    } catch (err) {
+      browserLaunchPromise = null;
+      console.error('[Virtual Browser] Browser launch failed:', err.message);
+      throw err;
+    }
+  })();
 
   return browserLaunchPromise;
 }

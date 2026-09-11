@@ -1,38 +1,7 @@
 const puppeteer = require('puppeteer');
 const fs = require('node:fs');
 const { normalizeUrl, validateHostnameAndResolve } = require('./url-validator');
-
-// Common executable paths for system Chrome / Chromium / Edge across OSes
-const CANDIDATE_PATHS = [
-  process.env.PUPPETEER_EXECUTABLE_PATH,
-  process.env.CHROME_PATH,
-  // Windows
-  'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-  'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-  'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
-  // Linux & Alpine
-  '/usr/bin/chromium-browser',
-  '/usr/bin/chromium',
-  '/usr/bin/google-chrome-stable',
-  // macOS
-  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-].filter(Boolean);
-
-/**
- * Finds the first usable browser executable on the host system.
- */
-function findSystemBrowserExecutable() {
-  for (const candidate of CANDIDATE_PATHS) {
-    try {
-      if (fs.existsSync(candidate)) {
-        return candidate;
-      }
-    } catch {
-      // Ignore permission or stat errors
-    }
-  }
-  return null;
-}
+const { resolveBrowserExecutable, findSystemBrowserExecutable } = require('./browser-resolver');
 
 /**
  * Executes a dynamic inspection using a headless browser.
@@ -78,14 +47,19 @@ async function runDynamicInspection(rawUrl, options = {}) {
     ]
   };
 
-  // If system executable exists, provide it as fallback
-  const systemExecutable = findSystemBrowserExecutable();
-  if (systemExecutable) {
-    launchOptions.executablePath = systemExecutable;
+  // Resolve browser executable via bulletproof multi-tier detection & auto-installer
+  let systemExecutable = null;
+  try {
+    systemExecutable = await resolveBrowserExecutable();
+    if (systemExecutable) {
+      launchOptions.executablePath = systemExecutable;
+    }
+  } catch (err) {
+    logger?.browser(`Browser resolution note: ${err.message}`);
   }
 
   try {
-    logger?.browser(`Launching Headless Chromium (Executable: ${systemExecutable ? 'System Chrome' : 'Bundled Chromium'})...`);
+    logger?.browser(`Launching Headless Chromium (Executable: ${systemExecutable || 'Default Bundled'})...`);
     browser = await puppeteer.launch(launchOptions);
     const page = await browser.newPage();
 
@@ -218,5 +192,6 @@ async function runDynamicInspection(rawUrl, options = {}) {
 
 module.exports = {
   runDynamicInspection,
-  findSystemBrowserExecutable
+  findSystemBrowserExecutable,
+  resolveBrowserExecutable
 };

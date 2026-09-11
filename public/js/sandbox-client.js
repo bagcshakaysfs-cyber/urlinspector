@@ -253,12 +253,35 @@ class VirtualSandbox {
         break;
 
       case 'error':
-        this.setStatus(`Error: ${msg.message}`, 'error');
+        this.setStatus(`Error: ${msg.message.split('\n')[0].substring(0, 45)}...`, 'error');
+        this.showCanvasError(msg.message);
         break;
 
       case 'warn':
         console.warn('[Virtual Sandbox Notice]', msg.message);
         break;
+    }
+  }
+
+  showCanvasError(message) {
+    if (!this.ctx || !this.canvas) return;
+    const w = this.canvas.width;
+    const h = this.canvas.height;
+
+    this.ctx.fillStyle = '#090d16';
+    this.ctx.fillRect(0, 0, w, h);
+
+    this.ctx.fillStyle = '#ef4444';
+    this.ctx.font = 'bold 24px Inter, -apple-system, sans-serif';
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText('⚠️ Virtual Sandbox Alert', w / 2, h / 2 - 60);
+
+    this.ctx.fillStyle = '#cbd5e1';
+    this.ctx.font = '14px "JetBrains Mono", Consolas, monospace';
+    const lines = (message || 'Unknown error occurred').split('\n');
+    let startY = h / 2 - 15;
+    for (let i = 0; i < Math.min(lines.length, 7); i++) {
+      this.ctx.fillText(lines[i], w / 2, startY + (i * 24));
     }
   }
 
