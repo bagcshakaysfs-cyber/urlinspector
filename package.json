@@ -1,0 +1,31 @@
+{
+  "name": "web-inspector",
+  "version": "1.0.0",
+  "description": "Production-ready website status and HTML inspection tool with SSRF protection, SEO analysis, DNS/TLS checks, and raw HTML viewer.",
+  "main": "server.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "keywords": [
+    "website-inspector",
+    "http-status",
+    "html-parser",
+    "seo-analyzer",
+    "security-headers",
+    "dns-checker",
+    "tls-checker"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "cheerio": "^1.0.0",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0"
+  }
+}
