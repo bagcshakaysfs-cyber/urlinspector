@@ -1,6 +1,6 @@
 const puppeteer = require('puppeteer');
 const { URL } = require('node:url');
-const { validateHostnameAndResolve } = require('./url-validator');
+const { normalizeUrl, validateHostnameAndResolve } = require('./url-validator');
 const { resolveBrowserExecutable, findSystemBrowserExecutable } = require('./browser-resolver');
 
 let sharedBrowser = null;
@@ -137,17 +137,15 @@ class VirtualSession {
     try {
       this.send({ type: 'status', message: 'Verifying security and SSRF rules...' });
 
-      let parsed;
-      try {
-        parsed = new URL(this.targetUrl);
-        if (!['http:', 'https:'].includes(parsed.protocol)) {
-          throw new Error('Only HTTP and HTTPS protocols are supported.');
-        }
-      } catch (err) {
-        this.send({ type: 'error', message: `Invalid target URL: ${err.message}` });
+      const normalized = normalizeUrl(this.targetUrl);
+      if (!normalized.valid) {
+        this.send({ type: 'error', message: `Invalid target URL: ${normalized.error}` });
         this.destroy();
         return;
       }
+
+      this.targetUrl = normalized.url;
+      const parsed = new URL(this.targetUrl);
 
       // SSRF validation
       const dnsCheck = await validateHostnameAndResolve(parsed.hostname);
@@ -434,8 +432,26 @@ class VirtualSession {
 
         case 'navigate': {
           if (msg.url) {
-            this.send({ type: 'status', message: `Navigating to ${msg.url}...` });
-            await this.page.goto(msg.url, { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
+            const norm = normalizeUrl(msg.url);
+            if (!norm.valid) {
+              this.send({ type: 'warn', message: `Invalid navigation URL: ${norm.error}` });
+              break;
+            }
+            try {
+              const parsedNav = new URL(norm.url);
+              const dnsCheck = await validateHostnameAndResolve(parsedNav.hostname);
+              if (!dnsCheck.valid) {
+                this.send({ type: 'warn', message: `SSRF Security Block: ${dnsCheck.error}` });
+                break;
+              }
+              this.targetUrl = norm.url;
+              this.send({ type: 'status', message: `Navigating to ${norm.url}...` });
+              await this.page.goto(norm.url, { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(err => {
+                this.send({ type: 'warn', message: `Navigation notice: ${err.message}` });
+              });
+            } catch (err) {
+              this.send({ type: 'warn', message: `Navigation error: ${err.message}` });
+            }
           }
           break;
         }
@@ -509,12 +525,17 @@ class VirtualSession {
 class VirtualBrowserManager {
   static handleConnection(ws, req) {
     const parsedUrl = new URL(req.url, 'http://localhost');
-    const targetUrl = parsedUrl.searchParams.get('url');
+    let targetUrl = parsedUrl.searchParams.get('url');
 
     if (!targetUrl) {
       ws.send(JSON.stringify({ type: 'error', message: 'Missing target URL parameter (?url=https://example.com)' }));
       ws.close();
       return;
+    }
+
+    targetUrl = targetUrl.trim();
+    if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//i.test(targetUrl)) {
+      targetUrl = targetUrl.startsWith('//') ? `https:${targetUrl}` : `https://${targetUrl}`;
     }
 
     const session = new VirtualSession(ws, targetUrl);

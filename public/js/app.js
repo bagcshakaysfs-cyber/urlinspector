@@ -433,13 +433,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('nav-sandbox-btn')?.addEventListener('click', (e) => {
       e.preventDefault();
-      const url = urlInput?.value.trim() || 'https://example.com';
+      let url = urlInput?.value.trim() || 'https://example.com';
+      if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//i.test(url)) {
+        url = url.startsWith('//') ? `https:${url}` : `https://${url}`;
+      }
       window.sandboxInstance.open(url);
     });
 
     document.getElementById('btn-hero-launch-sandbox')?.addEventListener('click', (e) => {
       e.preventDefault();
-      const url = urlInput?.value.trim() || 'https://example.com';
+      let url = urlInput?.value.trim() || 'https://example.com';
+      if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//i.test(url)) {
+        url = url.startsWith('//') ? `https:${url}` : `https://${url}`;
+      }
       window.sandboxInstance.open(url);
     });
   }

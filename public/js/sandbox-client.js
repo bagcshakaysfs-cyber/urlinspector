@@ -175,7 +175,13 @@ class VirtualSandbox {
    * Opens the virtual browser sandbox connected to target URL.
    */
   open(targetUrl) {
-    this.currentUrl = targetUrl;
+    let cleanUrl = (targetUrl || '').trim();
+    if (!cleanUrl) cleanUrl = 'https://example.com';
+    if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//i.test(cleanUrl)) {
+      cleanUrl = cleanUrl.startsWith('//') ? `https:${cleanUrl}` : `https://${cleanUrl}`;
+    }
+
+    this.currentUrl = cleanUrl;
     this.requests.clear();
     this.requestsList = [];
     this.activeFilter = 'all';
@@ -186,7 +192,7 @@ class VirtualSandbox {
     }
 
     if (this.addressInput) {
-      this.addressInput.value = targetUrl;
+      this.addressInput.value = cleanUrl;
     }
 
     this.setStatus('Initializing Chromium...', 'connecting');
@@ -195,7 +201,7 @@ class VirtualSandbox {
 
     // Connect WebSocket
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws/sandbox?url=${encodeURIComponent(targetUrl)}`;
+    const wsUrl = `${protocol}//${window.location.host}/ws/sandbox?url=${encodeURIComponent(cleanUrl)}`;
 
     if (this.ws) {
       try { this.ws.close(); } catch {}
