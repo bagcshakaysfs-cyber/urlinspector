@@ -38,7 +38,7 @@ function buildBrowserHeaders(targetUrl) {
  */
 function executeSingleRequest(targetUrl, options = {}) {
   return new Promise((resolve, reject) => {
-    const { timeoutMs = DEFAULT_TIMEOUT_MS, maxSize = DEFAULT_MAX_SIZE } = options;
+    const { timeoutMs = DEFAULT_TIMEOUT_MS, maxSize = DEFAULT_MAX_SIZE, logger } = options;
     const urlObj = new URL(targetUrl);
     const isHttps = urlObj.protocol === 'https:';
     const client = isHttps ? https : http;
@@ -58,12 +58,14 @@ function executeSingleRequest(targetUrl, options = {}) {
       path: `${urlObj.pathname || '/'}${urlObj.search || ''}`,
       method: 'GET',
       headers: requestHeaders,
-      // Do not verify unauthorized TLS if user wants strict, but keep default strict rejectUnauthorized: true
       rejectUnauthorized: true
     };
 
+    logger?.http(`Sending HTTP GET to ${urlObj.protocol}//${urlObj.host}${reqOptions.path}`);
+
     const req = client.request(reqOptions, res => {
       const responseTimeMs = Date.now() - startTime;
+      logger?.http(`Received HTTP/${res.httpVersion} ${res.statusCode} ${res.statusMessage} (${responseTimeMs}ms)`);
       const contentLengthHeader = res.headers['content-length'];
 
       if (contentLengthHeader && parseInt(contentLengthHeader, 10) > maxSize) {
@@ -169,11 +171,15 @@ async function safeFetch(rawUrl, options = {}) {
   let totalStartTime = Date.now();
   let lastResponse = null;
 
+  const { logger } = options;
+
   for (let hop = 0; hop <= maxRedirects; hop++) {
     // 2. SSRF & DNS pre-resolution validation on every hop
     const currentParsed = new URL(currentUrl);
+    logger?.dns(`Validating host ${currentParsed.hostname} against SSRF and private IP rules...`);
     const dnsValidation = await validateHostnameAndResolve(currentParsed.hostname);
     if (!dnsValidation.valid) {
+      logger?.error(`SSRF/DNS security check blocked: ${dnsValidation.error}`);
       return {
         success: false,
         error: dnsValidation.error,
@@ -182,10 +188,12 @@ async function safeFetch(rawUrl, options = {}) {
         redirectChain
       };
     }
+    logger?.dns(`Host ${currentParsed.hostname} verified: resolved to ${dnsValidation.ip} (Public & Valid)`);
 
     try {
-      lastResponse = await executeSingleRequest(currentUrl, { timeoutMs, maxSize });
+      lastResponse = await executeSingleRequest(currentUrl, { timeoutMs, maxSize, logger });
     } catch (err) {
+      logger?.error(`Network fetch failed on hop ${hop}: ${err.message}`);
       return {
         success: false,
         error: err.message,
@@ -199,6 +207,7 @@ async function safeFetch(rawUrl, options = {}) {
     const isRedirect = [301, 302, 303, 307, 308].includes(statusCode);
 
     if (isRedirect && lastResponse.headers.location) {
+      logger?.http(`Received redirect ${statusCode} -> Location: ${lastResponse.headers.location}`);
       if (hop === maxRedirects) {
         return {
           success: false,

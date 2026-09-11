@@ -53,11 +53,23 @@ const UI = {
       statusLabel = 'SERVER ERROR';
     }
 
+    const isDynamic = data.mode === 'dynamic' || (data.dynamic && data.dynamic.enabled);
+    const engineBadge = isDynamic
+      ? `<span class="badge" style="background: rgba(34, 197, 94, 0.12); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); font-size: 0.74rem; font-weight: 600; padding: 0.25rem 0.65rem; border-radius: 9999px; display: inline-flex; align-items: center; gap: 0.35rem;">
+           <span>🖥️</span> Headless Chromium (JS Hydrated)
+         </span>`
+      : `<span class="badge" style="background: rgba(255, 255, 255, 0.06); color: #e4e4e7; border: 1px solid var(--border-subtle); font-size: 0.74rem; font-weight: 600; padding: 0.25rem 0.65rem; border-radius: 9999px; display: inline-flex; align-items: center; gap: 0.35rem;">
+           <span style="color: #fbbf24;">⚡</span> Fast HTTP Engine
+         </span>`;
+
     card.innerHTML = `
       <div class="status-header-row">
-        <div class="status-badge-lg ${badgeClass}">
-          <span class="pulse-dot"></span>
-          <span>${statusLabel}</span>
+        <div style="display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap;">
+          <div class="status-badge-lg ${badgeClass}">
+            <span class="pulse-dot"></span>
+            <span>${statusLabel}</span>
+          </div>
+          ${engineBadge}
         </div>
         <div style="display:flex; gap: 0.5rem; align-items: center;">
           <span style="font-size: 0.82rem; color: var(--text-dim); font-family: var(--font-mono);">${status.httpVersion || 'HTTP/1.1'}</span>
@@ -1095,8 +1107,209 @@ const UI = {
     const reqElem = document.getElementById('raw-request-pre');
     const resElem = document.getElementById('raw-response-pre');
 
-    if (reqElem) reqElem.textContent = reqHeadersText;
-    if (resElem) resElem.textContent = resHeadersText;
+    if (reqElem) {
+      reqElem.textContent = reqHeadersText;
+      reqElem.scrollTop = 0;
+      reqElem.scrollLeft = 0;
+    }
+    if (resElem) {
+      resElem.textContent = resHeadersText;
+      resElem.scrollTop = 0;
+      resElem.scrollLeft = 0;
+    }
+
+    const copyReqBtn = document.getElementById('btn-copy-raw-request');
+    if (copyReqBtn) {
+      copyReqBtn.onclick = () => {
+        navigator.clipboard.writeText(reqHeadersText).then(() => {
+          copyReqBtn.textContent = 'Copied!';
+          setTimeout(() => (copyReqBtn.textContent = 'Copy'), 2000);
+        });
+      };
+    }
+
+    const copyResBtn = document.getElementById('btn-copy-raw-response');
+    if (copyResBtn) {
+      copyResBtn.onclick = () => {
+        navigator.clipboard.writeText(resHeadersText).then(() => {
+          copyResBtn.textContent = 'Copied!';
+          setTimeout(() => (copyResBtn.textContent = 'Copy'), 2000);
+        });
+      };
+    }
+  },
+
+  /**
+   * Resets execution logs for a brand new scan session (no previous logs retained).
+   */
+  clearExecutionLogs() {
+    const card = document.getElementById('scraper-logs-card');
+    const terminal = document.getElementById('scraper-logs-terminal');
+    const countBadge = document.getElementById('logs-event-count');
+    if (terminal) terminal.innerHTML = '';
+    if (countBadge) countBadge.textContent = '0 events';
+    if (card) card.style.display = 'none';
+  },
+
+  /**
+   * Renders the Scraper Execution Trace Terminal for the current session.
+   */
+  renderExecutionLogs(logs, mode = 'fast', targetUrl = '') {
+    const card = document.getElementById('scraper-logs-card');
+    const terminal = document.getElementById('scraper-logs-terminal');
+    if (!card || !terminal) return;
+
+    // Reset previous logs completely (session-only logs)
+    terminal.innerHTML = '';
+
+    if (!Array.isArray(logs) || logs.length === 0) {
+      card.style.display = 'none';
+      return;
+    }
+
+    card.style.display = 'block';
+
+    const countBadge = document.getElementById('logs-event-count');
+    if (countBadge) countBadge.textContent = `${logs.length} events`;
+
+    const engineBadge = document.getElementById('terminal-engine-label');
+    if (engineBadge) {
+      engineBadge.textContent = mode === 'dynamic' ? 'Headless Chromium Engine' : 'Fast HTTP Engine';
+    }
+
+    const sessionLabel = document.getElementById('terminal-session-label');
+    if (sessionLabel && targetUrl) {
+      try {
+        const host = new URL(targetUrl).hostname;
+        sessionLabel.textContent = `Session: ${host}`;
+      } catch {
+        sessionLabel.textContent = 'Session Trace Log';
+      }
+    }
+
+    // Counts for category filters
+    let netCount = 0;
+    let browserCount = 0;
+    let apiCount = 0;
+    let errCount = 0;
+
+    logs.forEach(e => {
+      const cat = (e.category || '').toUpperCase();
+      if (['DNS', 'TLS', 'HTTP', 'NETWORK'].includes(cat)) netCount++;
+      if (['BROWSER', 'DOM'].includes(cat)) browserCount++;
+      if (cat === 'API') apiCount++;
+      if (e.level === 'error' || e.level === 'warn' || ['WARN', 'ERROR'].includes(cat)) errCount++;
+    });
+
+    const countAllElem = document.getElementById('count-all');
+    const countNetElem = document.getElementById('count-network');
+    const countBrowserElem = document.getElementById('count-browser');
+    const countApiElem = document.getElementById('count-api');
+    const countErrElem = document.getElementById('count-error');
+
+    if (countAllElem) countAllElem.textContent = logs.length;
+    if (countNetElem) countNetElem.textContent = netCount;
+    if (countBrowserElem) countBrowserElem.textContent = browserCount;
+    if (countApiElem) countApiElem.textContent = apiCount;
+    if (countErrElem) countErrElem.textContent = errCount;
+
+    // Helper for category badge classes
+    const getBadgeClass = (cat) => {
+      switch (cat) {
+        case 'DNS': return 'badge-cat-dns';
+        case 'TLS': return 'badge-cat-tls';
+        case 'HTTP': return 'badge-cat-http';
+        case 'BROWSER': return 'badge-cat-browser';
+        case 'NETWORK': return 'badge-cat-network';
+        case 'API': return 'badge-cat-api';
+        case 'DOM': return 'badge-cat-dom';
+        case 'WARN': return 'badge-cat-warn';
+        case 'ERROR': return 'badge-cat-error';
+        case 'DONE': return 'badge-cat-done';
+        default: return 'badge-cat-dns';
+      }
+    };
+
+    const renderLines = (filteredLogs) => {
+      terminal.innerHTML = filteredLogs.map(item => {
+        const cat = (item.category || 'INFO').toUpperCase();
+        const badgeClass = getBadgeClass(cat);
+        const msgClass = item.level === 'error' ? 'error' : (item.level === 'warn' ? 'warn' : '');
+        return `
+          <div class="log-entry" data-category="${cat.toLowerCase()}" data-level="${item.level || 'info'}">
+            <span class="log-time">${item.deltaStr || '+0.000s'}</span>
+            <span class="log-badge ${badgeClass}">[${cat}]</span>
+            <span class="log-msg ${msgClass}">${this.escape(item.message)}</span>
+          </div>
+        `;
+      }).join('');
+      terminal.scrollTop = terminal.scrollHeight;
+    };
+
+    renderLines(logs);
+
+    // Filter buttons
+    const filterBtns = card.querySelectorAll('.log-filter-btn');
+    filterBtns.forEach(btn => {
+      btn.onclick = () => {
+        filterBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const filter = btn.getAttribute('data-filter');
+        let filtered = logs;
+        if (filter === 'network') {
+          filtered = logs.filter(e => ['DNS', 'TLS', 'HTTP', 'NETWORK'].includes((e.category || '').toUpperCase()));
+        } else if (filter === 'browser') {
+          filtered = logs.filter(e => ['BROWSER', 'DOM'].includes((e.category || '').toUpperCase()));
+        } else if (filter === 'api') {
+          filtered = logs.filter(e => (e.category || '').toUpperCase() === 'API');
+        } else if (filter === 'error') {
+          filtered = logs.filter(e => e.level === 'error' || e.level === 'warn' || ['WARN', 'ERROR'].includes((e.category || '').toUpperCase()));
+        }
+        renderLines(filtered);
+      };
+    });
+
+    // Copy trace button
+    const copyBtn = document.getElementById('btn-copy-logs');
+    if (copyBtn) {
+      copyBtn.onclick = () => {
+        const plainText = logs.map(e => `${e.deltaStr || '+0.000s'} [${(e.category || 'INFO').toUpperCase()}] ${e.message}`).join('\n');
+        navigator.clipboard.writeText(plainText).then(() => {
+          copyBtn.textContent = 'Copied!';
+          setTimeout(() => (copyBtn.textContent = 'Copy Trace'), 2000);
+        });
+      };
+    }
+
+    // Download log file button
+    const downloadBtn = document.getElementById('btn-download-logs');
+    if (downloadBtn) {
+      downloadBtn.onclick = () => {
+        const plainText = logs.map(e => `${e.deltaStr || '+0.000s'} [${(e.category || 'INFO').toUpperCase()}] ${e.message}`).join('\n');
+        const blob = new Blob([plainText], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        let hostname = 'website';
+        try { hostname = new URL(targetUrl).hostname; } catch {}
+        a.download = `${hostname}-trace.log`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      };
+    }
+
+    // Collapse toggle button
+    const toggleBtn = document.getElementById('btn-toggle-logs-collapse');
+    const logsBody = document.getElementById('scraper-logs-body');
+    if (toggleBtn && logsBody) {
+      toggleBtn.onclick = () => {
+        const isHidden = logsBody.style.display === 'none';
+        logsBody.style.display = isHidden ? 'block' : 'none';
+        toggleBtn.textContent = isHidden ? 'Hide' : 'Show';
+      };
+    }
   }
 };
 

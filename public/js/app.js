@@ -145,7 +145,33 @@ document.addEventListener('DOMContentLoaded', () => {
     currentMode = mode;
     if (modeFastBtn && modeDynamicBtn) {
       modeFastBtn.classList.toggle('active', mode === 'fast');
+      modeFastBtn.setAttribute('aria-selected', mode === 'fast' ? 'true' : 'false');
       modeDynamicBtn.classList.toggle('active', mode === 'dynamic');
+      modeDynamicBtn.setAttribute('aria-selected', mode === 'dynamic' ? 'true' : 'false');
+    }
+
+    const hintContent = document.getElementById('mode-hint-content');
+    if (hintContent) {
+      if (mode === 'dynamic') {
+        hintContent.innerHTML = `
+          <span class="mode-hint-dot dot-dynamic"></span>
+          <span class="mode-hint-desc">
+            <strong>Headless Chromium Engine:</strong> Launches a real headless browser (1280x800). Hydrates client-side JavaScript (React, Vue, Next.js), captures viewport screenshot &amp; intercepts dynamic background API calls (~2-4s).
+          </span>
+        `;
+      } else {
+        hintContent.innerHTML = `
+          <span class="mode-hint-dot dot-fast"></span>
+          <span class="mode-hint-desc">
+            <strong>Fast HTTP Engine:</strong> Direct network fetch. Analyzes raw headers, SSR HTML, status codes &amp; TLS security with sub-second latency (~150ms).
+          </span>
+        `;
+      }
+    }
+
+    const inspectBtnSpan = document.querySelector('#btn-inspect span');
+    if (inspectBtnSpan) {
+      inspectBtnSpan.textContent = mode === 'dynamic' ? 'Launch Browser & Inspect' : 'Inspect Website';
     }
   }
 
@@ -174,12 +200,17 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     },
 
-    onError: (msg) => {
+    onError: (msg, data) => {
       inspectBtn.disabled = false;
       progressCard.style.display = 'none';
       dashboardResults.style.display = 'none';
       errorCard.style.display = 'flex';
       if (errorMessage) errorMessage.textContent = msg;
+
+      // Render diagnostic trace logs if available even upon failure
+      if (data && Array.isArray(data.logs) && data.logs.length > 0) {
+        UI.renderExecutionLogs(data.logs, currentMode, lastTargetUrl);
+      }
     },
 
     onSuccess: (data) => {
@@ -201,6 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Render dashboard components
       UI.renderStatusCard(data);
       UI.renderDynamicInsights(data.dynamic);
+      UI.renderExecutionLogs(data.logs, data.mode || currentMode, data.finalUrl || data.url);
       UI.renderRedirectTimeline(data.redirects);
       UI.renderPageInfo(data.html, data.nonHtmlNotice);
       UI.renderSeoCard(data.seo);
@@ -215,6 +247,9 @@ document.addEventListener('DOMContentLoaded', () => {
       dashboardResults.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   });
+
+  // Track active inspection target URL
+  let lastTargetUrl = '';
 
   // Handle URL input changes & clear button
   function updateClearBtn() {
@@ -252,9 +287,12 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   function triggerInspection(targetUrl) {
+    lastTargetUrl = targetUrl;
     inspectBtn.disabled = true;
     errorCard.style.display = 'none';
     dashboardResults.style.display = 'none';
+    // Fresh session: clear previous execution logs
+    UI.clearExecutionLogs();
     client.inspect(targetUrl, currentMode);
   }
 

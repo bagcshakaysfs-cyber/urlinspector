@@ -82,15 +82,29 @@
       </div>
 
       <!-- Mode Selector -->
-      <div class="mode-selector-wrapper">
-        <button type="button" class="mode-pill active" id="mode-fast-btn" data-mode="fast">
-          <span class="mode-icon">⚡</span>
-          <span>Fast HTTP</span>
-        </button>
-        <button type="button" class="mode-pill" id="mode-dynamic-btn" data-mode="dynamic">
-          <span class="mode-icon">🖥️</span>
-          <span>Dynamic SPA Browser</span>
-        </button>
+      <div class="mode-selector-container">
+        <div class="mode-selector-wrapper" role="tablist" aria-label="Inspection Engine Mode">
+          <button type="button" class="mode-pill active" id="mode-fast-btn" data-mode="fast" role="tab" aria-selected="true">
+            <span class="mode-icon">⚡</span>
+            <span class="mode-name">Fast HTTP</span>
+            <span class="mode-tag mode-tag-fast">~150ms</span>
+          </button>
+          <button type="button" class="mode-pill" id="mode-dynamic-btn" data-mode="dynamic" role="tab" aria-selected="false">
+            <span class="mode-icon">🖥️</span>
+            <span class="mode-name">Dynamic SPA Browser</span>
+            <span class="mode-tag mode-tag-dynamic">Chromium JS</span>
+          </button>
+        </div>
+
+        <!-- Dynamic Mode Explanation Card -->
+        <div class="mode-hint-box" id="mode-hint-box">
+          <div class="mode-hint-content" id="mode-hint-content">
+            <span class="mode-hint-dot dot-fast"></span>
+            <span class="mode-hint-desc">
+              <strong>Fast HTTP Engine:</strong> Direct network fetch. Analyzes raw headers, SSR HTML, status codes &amp; TLS security with sub-second latency (~150ms).
+            </span>
+          </div>
+        </div>
       </div>
 
       <!-- Quick Try Chips -->
@@ -161,6 +175,47 @@
       <!-- 1.5 Dynamic SPA Insights (Rendered if dynamic mode was used) -->
       <div class="card" id="dynamic-spa-card" style="display: none;">
         <!-- Rendered by UI.renderDynamicInsights -->
+      </div>
+
+      <!-- 1.8 Scraper Execution Logs & Event Trace Terminal -->
+      <div class="card" id="scraper-logs-card" style="display: none;">
+        <div class="card-header" id="scraper-logs-toggle-header" style="user-select: none;">
+          <div class="card-title-group">
+            <div class="card-icon">⚡</div>
+            <h2 class="card-title">Live Scraper Trace &amp; Execution Logs</h2>
+            <span class="badge badge-neutral" id="logs-event-count">0 events</span>
+          </div>
+          <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+            <button type="button" class="btn-sm" id="btn-copy-logs" title="Copy full execution trace">Copy Trace</button>
+            <button type="button" class="btn-sm" id="btn-download-logs" title="Download trace as text file">Download .log</button>
+            <button type="button" id="btn-toggle-logs-collapse" style="background: transparent; border: 1px solid var(--border-subtle); color: var(--text-dim); border-radius: var(--radius-sm); padding: 0.2rem 0.55rem; cursor: pointer; font-size: 0.72rem; transition: color 0.15s;">Hide</button>
+          </div>
+        </div>
+
+        <div id="scraper-logs-body">
+          <div class="logs-filter-bar">
+            <button type="button" class="log-filter-btn active" data-filter="all">All Events (<span id="count-all">0</span>)</button>
+            <button type="button" class="log-filter-btn" data-filter="network">Network &amp; TLS (<span id="count-network">0</span>)</button>
+            <button type="button" class="log-filter-btn" data-filter="browser">Browser &amp; DOM (<span id="count-browser">0</span>)</button>
+            <button type="button" class="log-filter-btn" data-filter="api">API Calls (<span id="count-api">0</span>)</button>
+            <button type="button" class="log-filter-btn" data-filter="error">Errors &amp; Warnings (<span id="count-error">0</span>)</button>
+          </div>
+
+          <div class="scraper-terminal-wrapper">
+            <div class="scraper-terminal-header">
+              <div class="terminal-dots">
+                <span class="terminal-dot red"></span>
+                <span class="terminal-dot yellow"></span>
+                <span class="terminal-dot green"></span>
+              </div>
+              <span class="terminal-title" id="terminal-session-label">Session Trace Log</span>
+              <span class="terminal-badge" id="terminal-engine-label">Fast HTTP</span>
+            </div>
+            <div class="scraper-terminal-console" id="scraper-logs-terminal">
+              <!-- Rendered by UI.renderExecutionLogs -->
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- 2. Redirect Timeline (If redirects occurred) -->
@@ -291,12 +346,18 @@
           </div>
         </div>
         <div class="grid-2-col">
-          <div>
-            <div style="font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; font-weight: 600;">Request Headers Sent</div>
+          <div style="min-width: 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <div style="font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Request Headers Sent</div>
+              <button class="btn-sm" id="btn-copy-raw-request" style="padding: 0.15rem 0.5rem; font-size: 0.7rem; font-weight: 500;">Copy</button>
+            </div>
             <pre class="dom-tree-container" id="raw-request-pre" style="max-height: 250px;"></pre>
           </div>
-          <div>
-            <div style="font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; font-weight: 600;">Response Headers Received</div>
+          <div style="min-width: 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <div style="font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Response Headers Received</div>
+              <button class="btn-sm" id="btn-copy-raw-response" style="padding: 0.15rem 0.5rem; font-size: 0.7rem; font-weight: 500;">Copy</button>
+            </div>
             <pre class="dom-tree-container" id="raw-response-pre" style="max-height: 250px;"></pre>
           </div>
         </div>

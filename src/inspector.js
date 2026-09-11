@@ -5,6 +5,7 @@ const { analyzeSecurityHeaders, parseAndMaskCookies } = require('./security-head
 const { getDnsInfo } = require('./dns');
 const { getTlsInfo } = require('./tls');
 const { runDynamicInspection } = require('./browser-runner');
+const { ScraperLogger } = require('./logger');
 
 /**
  * Categorizes an HTTP status code into user-friendly status types.
@@ -28,14 +29,17 @@ function getStatusCategory(statusCode) {
 async function inspectWebsite(rawUrl, options = {}) {
   const startTime = Date.now();
   const mode = options.mode || 'fast';
+  const logger = new ScraperLogger();
+
+  logger.log('START', `Inspection initiated in [${mode.toUpperCase()}] mode for ${rawUrl}`);
 
   // 1. Fetch website safely with SSRF protections, browser User-Agent, and redirect tracking
-  const fetchPromise = safeFetch(rawUrl);
+  const fetchPromise = safeFetch(rawUrl, { logger });
 
   // If dynamic mode requested, run headless browser alongside or after
   let dynamicPromise = Promise.resolve(null);
   if (mode === 'dynamic') {
-    dynamicPromise = runDynamicInspection(rawUrl, { timeoutMs: 10000 });
+    dynamicPromise = runDynamicInspection(rawUrl, { timeoutMs: 12000, logger });
   }
 
   const [fetchResult, dynamicResult] = await Promise.all([
@@ -44,13 +48,15 @@ async function inspectWebsite(rawUrl, options = {}) {
   ]);
 
   if (!fetchResult.success) {
+    logger.error(`Inspection failed: ${fetchResult.error}`);
     return {
       success: false,
       url: rawUrl,
       finalUrl: fetchResult.finalUrl || rawUrl,
       error: fetchResult.error || 'Inspection failed: unable to fetch resource.',
       redirects: fetchResult.redirectChain || [],
-      responseTime: Date.now() - startTime
+      responseTime: Date.now() - startTime,
+      logs: logger.getLogs()
     };
   }
 
@@ -107,11 +113,22 @@ async function inspectWebsite(rawUrl, options = {}) {
     }
   }
 
-  // 3. Parse HTML and perform SEO analysis
+  // 3. Parse HTML, detect framework state, and perform SEO analysis
   let parsedHtml = null;
   let seoReport = null;
 
+  if (htmlToParse) {
+    if (htmlToParse.includes('id="__NEXT_DATA__"')) {
+      logger.dom('Framework marker discovered: Next.js pre-rendered state (__NEXT_DATA__)');
+    } else if (htmlToParse.includes('id="__NUXT_DATA__"') || htmlToParse.includes('window.__NUXT__')) {
+      logger.dom('Framework marker discovered: Nuxt.js hydration state');
+    } else if (htmlToParse.includes('__INITIAL_STATE__')) {
+      logger.dom('Framework marker discovered: Redux/SSR state (__INITIAL_STATE__)');
+    }
+  }
+
   if ((isHtml || isDynamicEffective) && htmlToParse) {
+    logger.dom('Parsing HTML tree and extracting DOM elements, headings, and SEO metadata...');
     parsedHtml = parseHtml(htmlToParse, finalUrl);
     if (parsedHtml) {
       seoReport = analyzeSeo(parsedHtml, finalUrl);
@@ -119,11 +136,14 @@ async function inspectWebsite(rawUrl, options = {}) {
   }
 
   // 4. Analyze Security Headers and Cookies
+  logger.log('SECURITY', 'Evaluating HTTP security response headers and cookie attributes...');
   const securityHeaders = analyzeSecurityHeaders(headers);
   const cookies = parseAndMaskCookies(headers);
 
   // Server identifier
   const serverHeader = headers['server'] || 'Not disclosed';
+
+  logger.done(`Inspection analysis completed in ${Date.now() - startTime}ms`);
 
   return {
     success: true,
@@ -159,7 +179,8 @@ async function inspectWebsite(rawUrl, options = {}) {
     dns: dnsResult,
     tls: tlsResult,
     rawHtml: (isHtml || isDynamicEffective) ? htmlToParse : null,
-    dynamic: dynamicMeta
+    dynamic: dynamicMeta,
+    logs: logger.getLogs()
   };
 }
 
