@@ -147,15 +147,28 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+const { WebSocketServer } = require('ws');
+const { VirtualBrowserManager } = require('./src/virtual-browser');
+
 // Start Server
 const server = app.listen(PORT, () => {
   console.log(`[Web Inspector] Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode.`);
   console.log(`[Web Inspector] URL: http://localhost:${PORT}`);
 });
 
+// Initialize WebSocket Server for Virtual Browser Sandbox
+const wss = new WebSocketServer({ server, path: '/ws/sandbox' });
+
+wss.on('connection', (ws, req) => {
+  VirtualBrowserManager.handleConnection(ws, req);
+});
+
 // Graceful shutdown handling for Heroku and Docker SIGTERM/SIGINT
 function handleShutdown(signal) {
   console.log(`[Web Inspector] Received ${signal}. Starting graceful shutdown...`);
+  wss.close(() => {
+    console.log('[Web Inspector] WebSocket server closed.');
+  });
   server.close(() => {
     console.log('[Web Inspector] HTTP server closed.');
     process.exit(0);

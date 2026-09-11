@@ -35,6 +35,7 @@
       </a>
       <nav class="nav-links">
         <a href="/" class="nav-link active">Inspector</a>
+        <button class="nav-link" id="nav-sandbox-btn" style="color: #4ade80; font-weight: 600;">🖥️ Live Sandbox</button>
         <button class="nav-link" id="nav-about-btn">About</button>
         <button class="nav-link" id="nav-api-btn">API Docs</button>
       </nav>
@@ -103,6 +104,12 @@
             <span class="mode-hint-desc">
               <strong>Fast HTTP Engine:</strong> Direct network fetch. Analyzes raw headers, SSR HTML, status codes &amp; TLS security with sub-second latency (~150ms).
             </span>
+          </div>
+          <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+            <span style="font-size: 0.72rem; color: var(--text-dim);">Want to act as a real user and watch dynamic requests load live?</span>
+            <button type="button" class="btn-sm" id="btn-hero-launch-sandbox" style="background: rgba(34, 197, 94, 0.12); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); font-size: 0.72rem; font-weight: 600; padding: 0.2rem 0.6rem; cursor: pointer;">
+              🚀 Launch Live Sandbox
+            </button>
           </div>
         </div>
       </div>
@@ -425,6 +432,122 @@
     </div>
   </div>
 
+  <!-- Live Virtual Browser Sandbox Modal -->
+  <div class="modal-backdrop sandbox-modal-backdrop" id="modal-sandbox">
+    <div class="sandbox-window">
+      
+      <!-- Top Chrome Navigation Bar -->
+      <div class="sandbox-top-bar">
+        <div class="sandbox-controls">
+          <button class="sb-nav-btn" id="sb-btn-back" title="Go Back">←</button>
+          <button class="sb-nav-btn" id="sb-btn-forward" title="Go Forward">→</button>
+          <button class="sb-nav-btn" id="sb-btn-reload" title="Reload Page">↻</button>
+        </div>
+
+        <div class="sandbox-address-wrapper">
+          <span class="sb-lock-icon">🔒</span>
+          <input type="text" id="sandbox-address-input" class="sandbox-address-input" placeholder="https://example.com" spellcheck="false" />
+          <span class="sb-status-badge status-connecting" id="sandbox-status-badge">Connecting...</span>
+        </div>
+
+        <div class="sandbox-actions">
+          <button class="sb-action-btn sandbox-modal-close" id="sb-btn-close" title="Close Sandbox">✕</button>
+        </div>
+      </div>
+
+      <!-- Main Workspace: Split Screen & DevTools Network Inspector -->
+      <div class="sandbox-workspace">
+        
+        <!-- Upper Screen: Interactive Viewport Stream -->
+        <div class="sandbox-viewport-area">
+          <div class="canvas-wrapper">
+            <canvas id="sandbox-canvas" width="1280" height="800"></canvas>
+          </div>
+          <div class="canvas-help-hint">
+            <span>🖱️ Interactive: Click, scroll, and type directly on the screen above. Real-time actions are dispatched into Headless Chromium.</span>
+          </div>
+        </div>
+
+        <!-- Lower Panel: Chrome DevTools-Grade Network Activity Inspector -->
+        <div class="sandbox-devtools-panel">
+          
+          <!-- Summary Counters Bar -->
+          <div class="sb-devtools-header">
+            <div class="sb-devtools-title">
+              <span class="sb-devtools-icon">🌐</span>
+              <strong>Live Network Activity</strong>
+              <span class="sb-stat-pill"><strong id="sb-count-total">0</strong> requests</span>
+              <span class="sb-stat-pill highlight-dynamic"><strong id="sb-count-dynamic">0</strong> dynamic-only</span>
+              <span class="sb-stat-pill"><strong id="sb-count-size">0 B</strong> transferred</span>
+              <span class="sb-stat-pill error-stat"><strong id="sb-count-errors">0</strong> errors</span>
+            </div>
+            <div class="sb-search-wrapper">
+              <input type="text" id="sb-search-input" class="sb-search-input" placeholder="Filter requests by name or URL..." />
+            </div>
+          </div>
+
+          <!-- DevTools Filter Tabs -->
+          <div class="sb-filter-bar">
+            <button type="button" class="sb-filter-btn active" data-filter="all">All</button>
+            <button type="button" class="sb-filter-btn filter-dynamic" data-filter="dynamic">⚡ Dynamic-Only</button>
+            <button type="button" class="sb-filter-btn" data-filter="fetch">Fetch / XHR</button>
+            <button type="button" class="sb-filter-btn" data-filter="js">JS</button>
+            <button type="button" class="sb-filter-btn" data-filter="css">CSS</button>
+            <button type="button" class="sb-filter-btn" data-filter="img">Img</button>
+            <button type="button" class="sb-filter-btn" data-filter="error">Errors</button>
+          </div>
+
+          <!-- Network Requests Table -->
+          <div class="sb-table-responsive">
+            <table class="sb-network-table">
+              <thead>
+                <tr>
+                  <th class="col-name">Name</th>
+                  <th class="col-status">Status</th>
+                  <th class="col-method">Method</th>
+                  <th class="col-type">Type</th>
+                  <th class="col-initiator">Initiator</th>
+                  <th class="col-size">Size</th>
+                  <th class="col-time">Time</th>
+                  <th class="col-condition">Condition</th>
+                </tr>
+              </thead>
+              <tbody id="sandbox-network-tbody">
+                <tr>
+                  <td colspan="8" style="text-align: center; color: var(--text-dim); padding: 1.5rem 0;">
+                    Connecting to live browser session...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Request Inspection Drawer (Appears when row is clicked) -->
+          <div class="sb-request-drawer" id="sb-request-drawer" style="display: none;">
+            <div class="sb-drawer-header">
+              <div style="font-weight: 600; font-family: var(--font-mono); font-size: 0.82rem; color: var(--text-main);" id="sb-drawer-title">Request Details</div>
+              <button type="button" class="btn-sm" id="sb-drawer-close">Close Details</button>
+            </div>
+            <div style="font-size: 0.74rem; font-family: var(--font-mono); word-break: break-all; color: var(--text-muted); margin-bottom: 0.75rem;" id="sb-drawer-url"></div>
+            <div class="grid-2-col">
+              <div>
+                <div style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; margin-bottom: 0.35rem; font-weight: 600;">Request Headers Sent</div>
+                <pre class="dom-tree-container" id="sb-drawer-req-headers" style="max-height: 160px; font-size: 0.74rem;"></pre>
+              </div>
+              <div>
+                <div style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; margin-bottom: 0.35rem; font-weight: 600;">Response Headers Received</div>
+                <pre class="dom-tree-container" id="sb-drawer-res-headers" style="max-height: 160px; font-size: 0.74rem;"></pre>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
   <!-- Footer -->
   <footer class="site-footer">
     <div class="container footer-inner">
@@ -432,13 +555,14 @@
         Web Inspector • Website Status &amp; HTML Inspection Tool
       </div>
       <div class="footer-disclaimer">
-        Inspections are performed server-side. Results and HTML payloads are not permanently stored by this application. This inspector analyzes the server-delivered HTML; JavaScript-generated DOM content may require a browser-rendering mode in a future version.
+        Inspections are performed server-side. Results and HTML payloads are not permanently stored by this application.
       </div>
     </div>
   </footer>
 
   <!-- Scripts -->
   <script src="/js/inspector.js"></script>
+  <script src="/js/sandbox-client.js"></script>
   <script src="/js/ui.js"></script>
   <script src="/js/app.js"></script>
 </body>

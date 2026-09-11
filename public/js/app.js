@@ -231,7 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Render dashboard components
       UI.renderStatusCard(data);
-      UI.renderDynamicInsights(data.dynamic);
+      UI.renderDynamicInsights(data.dynamic, data.finalUrl || data.url);
       UI.renderExecutionLogs(data.logs, data.mode || currentMode, data.finalUrl || data.url);
       UI.renderRedirectTimeline(data.redirects);
       UI.renderPageInfo(data.html, data.nonHtmlNotice);
@@ -426,6 +426,23 @@ document.addEventListener('DOMContentLoaded', () => {
       setTimeout(() => (e.currentTarget.textContent = 'Copy cURL'), 2000);
     });
   });
+
+  // Initialize Virtual Browser Sandbox
+  if (typeof VirtualSandbox === 'function') {
+    window.sandboxInstance = new VirtualSandbox();
+
+    document.getElementById('nav-sandbox-btn')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      const url = urlInput?.value.trim() || 'https://example.com';
+      window.sandboxInstance.open(url);
+    });
+
+    document.getElementById('btn-hero-launch-sandbox')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      const url = urlInput?.value.trim() || 'https://example.com';
+      window.sandboxInstance.open(url);
+    });
+  }
 
   // Check URL query parameters on initial page load
   const params = new URLSearchParams(window.location.search);

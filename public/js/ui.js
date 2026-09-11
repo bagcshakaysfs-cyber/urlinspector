@@ -138,7 +138,7 @@ const UI = {
   /**
    * Renders Dynamic SPA Execution Insights (screenshot preview, API calls, runtime errors).
    */
-  renderDynamicInsights(dynamic) {
+  renderDynamicInsights(dynamic, targetUrl = '') {
     const card = document.getElementById('dynamic-spa-card');
     if (!card) return;
 
@@ -183,7 +183,12 @@ const UI = {
           <div class="card-icon">🖥️</div>
           <h2 class="card-title">Dynamic SPA Browser Execution</h2>
         </div>
-        <span class="badge badge-pass">Client JS Hydrated (${durationMs || 0}ms)</span>
+        <div style="display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap;">
+          <button type="button" class="btn-sm" id="btn-launch-sandbox-from-card" style="background: rgba(34, 197, 94, 0.12); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 0.35rem;">
+            <span>🚀</span> Launch Interactive Sandbox
+          </button>
+          <span class="badge badge-pass">Client JS Hydrated (${durationMs || 0}ms)</span>
+        </div>
       </div>
 
       <div class="grid-2-col">
@@ -220,6 +225,12 @@ const UI = {
       </div>
       ${consoleHtml}
     `;
+
+    document.getElementById('btn-launch-sandbox-from-card')?.addEventListener('click', () => {
+      if (window.sandboxInstance && targetUrl) {
+        window.sandboxInstance.open(targetUrl);
+      }
+    });
   },
 
   /**
