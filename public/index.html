@@ -81,6 +81,18 @@
         </form>
       </div>
 
+      <!-- Mode Selector -->
+      <div class="mode-selector-wrapper">
+        <button type="button" class="mode-pill active" id="mode-fast-btn" data-mode="fast">
+          <span class="mode-icon">⚡</span>
+          <span>Fast HTTP</span>
+        </button>
+        <button type="button" class="mode-pill" id="mode-dynamic-btn" data-mode="dynamic">
+          <span class="mode-icon">🖥️</span>
+          <span>Dynamic SPA Browser</span>
+        </button>
+      </div>
+
       <!-- Quick Try Chips -->
       <div class="quick-chips">
         <span>Try inspecting:</span>
@@ -146,6 +158,11 @@
         <!-- Rendered by UI.renderStatusCard -->
       </div>
 
+      <!-- 1.5 Dynamic SPA Insights (Rendered if dynamic mode was used) -->
+      <div class="card" id="dynamic-spa-card" style="display: none;">
+        <!-- Rendered by UI.renderDynamicInsights -->
+      </div>
+
       <!-- 2. Redirect Timeline (If redirects occurred) -->
       <div class="card" id="redirect-card" style="display: none;">
         <div class="card-header">
@@ -203,7 +220,19 @@
         <div class="card-header">
           <div class="card-title-group">
             <div class="card-icon">📦</div>
-            <h2 class="card-title">Assets &amp; DOM Structure</h2>
+            <div>
+              <h2 class="card-title">Assets &amp; Download Manager</h2>
+              <div style="font-size: 0.72rem; color: var(--text-dim);" id="asset-selection-count-badge">
+                Select assets below to package in .zip
+              </div>
+            </div>
+          </div>
+          <div class="card-actions">
+            <button type="button" class="btn-sm" id="btn-select-all-assets">Select All</button>
+            <button type="button" class="btn-sm" id="btn-deselect-all-assets">Deselect All</button>
+            <button type="button" class="btn-sm btn-bundle" id="btn-download-bundle" title="Download selected website assets as .zip">
+              📦 Download Selected (.zip)
+            </button>
           </div>
         </div>
         <div class="tabs-nav">
@@ -236,6 +265,7 @@
             </div>
           </div>
           <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+            <button class="btn-sm btn-bundle" id="btn-download-bundle-alt" title="Download complete website with assets as .zip">📦 Bundle (.zip)</button>
             <button class="btn-sm" id="btn-wrap-html" title="Toggle line wrapping">Wrap Lines</button>
             <button class="btn-sm" id="btn-copy-html">Copy HTML</button>
             <button class="btn-sm" id="btn-download-html">Download .html</button>

@@ -1,7 +1,127 @@
 /**
  * Web Inspector Main Application Controller
- * Handles user interactions, form submissions, navigation, tabs, and modals.
+ * Handles user interactions, form submissions, mode toggling, interactive asset selection,
+ * bundle downloads, navigation, tabs, and modals.
  */
+
+// Global Asset Manager for selective packaging
+window.AssetManager = {
+  selectedUrls: new Set(),
+  allDiscoveredUrls: new Set(),
+
+  init(html) {
+    this.selectedUrls.clear();
+    this.allDiscoveredUrls.clear();
+
+    if (!html) return;
+    const { scripts, stylesheets, images } = html;
+
+    if (scripts?.files) {
+      scripts.files.forEach(f => {
+        this.selectedUrls.add(f);
+        this.allDiscoveredUrls.add(f);
+      });
+    }
+    if (stylesheets?.files) {
+      stylesheets.files.forEach(f => {
+        this.selectedUrls.add(f);
+        this.allDiscoveredUrls.add(f);
+      });
+    }
+    if (images?.items) {
+      images.items.forEach(img => {
+        if (img.src) {
+          this.selectedUrls.add(img.src);
+          this.allDiscoveredUrls.add(img.src);
+        }
+      });
+    }
+
+    this.updateButtons();
+  },
+
+  toggle(url, isChecked) {
+    if (!url) return;
+    if (isChecked) {
+      this.selectedUrls.add(url);
+    } else {
+      this.selectedUrls.delete(url);
+    }
+    this.updateButtons();
+  },
+
+  toggleCategory(category, isChecked) {
+    document.querySelectorAll(`.asset-cb[data-category="${category}"]`).forEach(cb => {
+      cb.checked = isChecked;
+      const url = cb.getAttribute('data-url');
+      if (url) {
+        if (isChecked) {
+          this.selectedUrls.add(url);
+        } else {
+          this.selectedUrls.delete(url);
+        }
+      }
+    });
+    this.updateButtons();
+  },
+
+  selectAll() {
+    document.querySelectorAll('.asset-cb').forEach(cb => {
+      cb.checked = true;
+      const url = cb.getAttribute('data-url');
+      if (url) this.selectedUrls.add(url);
+    });
+    document.querySelectorAll('.select-all-category-cb').forEach(cb => {
+      cb.checked = true;
+    });
+    this.updateButtons();
+  },
+
+  deselectAll() {
+    document.querySelectorAll('.asset-cb').forEach(cb => {
+      cb.checked = false;
+    });
+    document.querySelectorAll('.select-all-category-cb').forEach(cb => {
+      cb.checked = false;
+    });
+    this.selectedUrls.clear();
+    this.updateButtons();
+  },
+
+  updateButtons() {
+    const count = this.selectedUrls.size;
+    const total = this.allDiscoveredUrls.size;
+
+    const bundleBtns = [
+      document.getElementById('btn-download-bundle'),
+      document.getElementById('btn-download-bundle-alt')
+    ];
+
+    bundleBtns.forEach(btn => {
+      if (!btn) return;
+      if (count === 0) {
+        btn.textContent = '📦 Select assets to download';
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+      } else {
+        btn.textContent = btn.id?.includes('alt') 
+          ? `📦 Bundle (${count})` 
+          : `📦 Download Selected (${count} assets) in .zip`;
+        btn.disabled = false;
+        btn.style.opacity = '1';
+      }
+    });
+
+    const badge = document.getElementById('asset-selection-count-badge');
+    if (badge) {
+      badge.textContent = `${count} of ${total} assets selected for .zip package`;
+    }
+  },
+
+  getSelectedArray() {
+    return Array.from(this.selectedUrls);
+  }
+};
 
 document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('inspect-form');
@@ -15,6 +135,22 @@ document.addEventListener('DOMContentLoaded', () => {
   const errorCard = document.getElementById('error-card');
   const errorMessage = document.getElementById('error-message-text');
   const dashboardResults = document.getElementById('dashboard-results');
+
+  // Mode Selection (Fast HTTP vs Dynamic SPA Browser)
+  let currentMode = 'fast';
+  const modeFastBtn = document.getElementById('mode-fast-btn');
+  const modeDynamicBtn = document.getElementById('mode-dynamic-btn');
+
+  function setMode(mode) {
+    currentMode = mode;
+    if (modeFastBtn && modeDynamicBtn) {
+      modeFastBtn.classList.toggle('active', mode === 'fast');
+      modeDynamicBtn.classList.toggle('active', mode === 'dynamic');
+    }
+  }
+
+  modeFastBtn?.addEventListener('click', () => setMode('fast'));
+  modeDynamicBtn?.addEventListener('click', () => setMode('dynamic'));
 
   // Initialize Inspector Client
   const client = new InspectorClient({
@@ -55,10 +191,16 @@ document.addEventListener('DOMContentLoaded', () => {
       // Update URL in browser history without reload
       const currentUrl = new URL(window.location.href);
       currentUrl.searchParams.set('url', data.url);
+      if (currentMode === 'dynamic') {
+        currentUrl.searchParams.set('mode', 'dynamic');
+      } else {
+        currentUrl.searchParams.delete('mode');
+      }
       window.history.pushState({}, '', currentUrl);
 
       // Render dashboard components
       UI.renderStatusCard(data);
+      UI.renderDynamicInsights(data.dynamic);
       UI.renderRedirectTimeline(data.redirects);
       UI.renderPageInfo(data.html, data.nonHtmlNotice);
       UI.renderSeoCard(data.seo);
@@ -113,8 +255,94 @@ document.addEventListener('DOMContentLoaded', () => {
     inspectBtn.disabled = true;
     errorCard.style.display = 'none';
     dashboardResults.style.display = 'none';
-    client.inspect(targetUrl);
+    client.inspect(targetUrl, currentMode);
   }
+
+  // Handle Interactive Asset Selection Event Delegation
+  document.addEventListener('change', (e) => {
+    if (e.target.classList.contains('asset-cb')) {
+      const url = e.target.getAttribute('data-url');
+      window.AssetManager.toggle(url, e.target.checked);
+    } else if (e.target.classList.contains('select-all-category-cb')) {
+      const category = e.target.getAttribute('data-category');
+      window.AssetManager.toggleCategory(category, e.target.checked);
+    }
+  });
+
+  document.getElementById('btn-select-all-assets')?.addEventListener('click', () => {
+    window.AssetManager.selectAll();
+  });
+
+  document.getElementById('btn-deselect-all-assets')?.addEventListener('click', () => {
+    window.AssetManager.deselectAll();
+  });
+
+  // Handle Offline Site Bundle (.ZIP) Download with Selected Assets
+  async function downloadSiteBundle(targetUrl) {
+    if (!targetUrl) return;
+    const selectedUrls = window.AssetManager.getSelectedArray();
+
+    if (selectedUrls.length === 0) {
+      alert('Please select at least one asset to download.');
+      return;
+    }
+
+    const bundleBtns = [
+      document.getElementById('btn-download-bundle'),
+      document.getElementById('btn-download-bundle-alt')
+    ];
+
+    bundleBtns.forEach(btn => {
+      if (btn) btn.textContent = `⏳ Packaging ${selectedUrls.length} assets...`;
+    });
+
+    try {
+      const response = await fetch('/api/archive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: targetUrl,
+          mode: currentMode,
+          selectedUrls
+        })
+      });
+
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson.error || `HTTP ${response.status}: Failed to package archive.`);
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+
+      let safeHost = 'website';
+      try {
+        safeHost = new URL(targetUrl).hostname.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+      } catch {}
+      a.download = `bundle-${safeHost}.zip`;
+
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(downloadUrl);
+    } catch (err) {
+      alert(`Archive download failed: ${err.message}`);
+    } finally {
+      window.AssetManager.updateButtons();
+    }
+  }
+
+  document.getElementById('btn-download-bundle')?.addEventListener('click', () => {
+    const url = urlInput?.value.trim();
+    if (url) downloadSiteBundle(url);
+  });
+
+  document.getElementById('btn-download-bundle-alt')?.addEventListener('click', () => {
+    const url = urlInput?.value.trim();
+    if (url) downloadSiteBundle(url);
+  });
 
   // Handle Asset Tabs Switching
   const tabButtons = document.querySelectorAll('.tab-btn[data-tab]');
@@ -164,6 +392,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // Check URL query parameters on initial page load
   const params = new URLSearchParams(window.location.search);
   const initialUrl = params.get('url');
+  const initialMode = params.get('mode');
+
+  if (initialMode === 'dynamic') {
+    setMode('dynamic');
+  }
+
   if (initialUrl && urlInput) {
     urlInput.value = initialUrl;
     updateClearBtn();

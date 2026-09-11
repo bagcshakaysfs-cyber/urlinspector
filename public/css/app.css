@@ -337,6 +337,52 @@ body {
   cursor: not-allowed;
 }
 
+/* Mode Selector Pills */
+.mode-selector-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  margin: 0 auto 1.25rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  padding: 0.25rem;
+  width: fit-content;
+}
+
+.mode-pill {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-dim);
+  padding: 0.35rem 0.85rem;
+  border-radius: var(--radius-full);
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.15s ease;
+  font-family: var(--font-sans);
+}
+
+.mode-pill:hover {
+  color: var(--text-main);
+}
+
+.mode-pill.active {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--border-subtle);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.mode-icon {
+  font-size: 0.85rem;
+}
+
 /* Quick Chips */
 .quick-chips {
   display: flex;
@@ -611,6 +657,104 @@ body {
   background: rgba(255, 255, 255, 0.12);
   color: #ffffff;
   border-color: var(--border-strong);
+}
+
+.btn-bundle {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-strong);
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+.btn-bundle:hover {
+  background: #ffffff;
+  color: #09090b;
+  border-color: #ffffff;
+}
+
+/* Modern Minimalist Asset Selection Checkboxes */
+.asset-cb, .select-all-cb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 15px;
+  height: 15px;
+  border-radius: 3px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-surface);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  transition: all 0.12s ease;
+  position: relative;
+  margin: 0;
+}
+
+.asset-cb:hover, .select-all-cb:hover {
+  border-color: #ffffff;
+}
+
+.asset-cb:checked, .select-all-cb:checked {
+  background: #ffffff;
+  border-color: #ffffff;
+}
+
+.asset-cb:checked::after, .select-all-cb:checked::after {
+  content: '';
+  width: 3.5px;
+  height: 7px;
+  border: solid #09090b;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg) translate(-0.5px, -0.5px);
+  display: block;
+}
+
+.th-checkbox, .td-checkbox {
+  width: 38px;
+  text-align: center;
+}
+
+/* Dynamic SPA Card & Screenshot Insights */
+.dynamic-spa-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.dynamic-screenshot-preview {
+  position: relative;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-code);
+  cursor: pointer;
+  transition: border-color 0.2s;
+  max-height: 320px;
+}
+
+.dynamic-screenshot-preview:hover {
+  border-color: var(--border-hover);
+}
+
+.dynamic-screenshot-preview img {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: cover;
+}
+
+.dynamic-screenshot-badge {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(4px);
+  border: 1px solid var(--border-subtle);
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.72rem;
+  color: var(--text-muted);
 }
 
 /* Status Hero Card */

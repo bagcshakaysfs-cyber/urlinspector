@@ -3,6 +3,7 @@ const path = require('node:path');
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { inspectWebsite } = require('./src/inspector');
+const { createWebsiteArchive } = require('./src/archiver');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -47,9 +48,10 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Primary Inspection API Endpoint
+// Primary Inspection API Endpoint (Supports mode=fast and mode=dynamic)
 app.get('/api/inspect', apiLimiter, async (req, res, next) => {
   const targetUrl = req.query.url;
+  const mode = req.query.mode === 'dynamic' ? 'dynamic' : 'fast';
 
   if (!targetUrl || typeof targetUrl !== 'string') {
     return res.status(400).json({
@@ -59,7 +61,7 @@ app.get('/api/inspect', apiLimiter, async (req, res, next) => {
   }
 
   try {
-    const result = await inspectWebsite(targetUrl);
+    const result = await inspectWebsite(targetUrl, { mode });
     if (!result.success) {
       return res.status(422).json(result);
     }
@@ -68,6 +70,53 @@ app.get('/api/inspect', apiLimiter, async (req, res, next) => {
     next(err);
   }
 });
+
+// Offline Website & Asset Archiver Endpoint (.zip streaming supporting GET & POST with selected assets)
+async function handleArchiveRequest(req, res, next) {
+  const targetUrl = req.method === 'POST' ? req.body?.url : req.query.url;
+  const mode = (req.method === 'POST' ? req.body?.mode : req.query.mode) === 'dynamic' ? 'dynamic' : 'fast';
+  const selectedUrls = req.method === 'POST' ? req.body?.selectedUrls : null;
+
+  if (!targetUrl || typeof targetUrl !== 'string') {
+    return res.status(400).json({
+      success: false,
+      error: 'Parameter "url" is required (e.g. url=https://example.com).'
+    });
+  }
+
+  try {
+    let preloadedHtml = null;
+    if (mode === 'dynamic') {
+      const inspectRes = await inspectWebsite(targetUrl, { mode: 'dynamic' });
+      if (inspectRes.success && inspectRes.rawHtml) {
+        preloadedHtml = inspectRes.rawHtml;
+      }
+    }
+
+    const { archive, stats } = await createWebsiteArchive(targetUrl, {
+      html: preloadedHtml,
+      selectedUrls
+    });
+
+    let safeHost = 'website';
+    try {
+      safeHost = new URL(targetUrl).hostname.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+    } catch {
+      // Fallback
+    }
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="bundle-${safeHost}.zip"`);
+    res.setHeader('X-Archived-Assets', String(stats.downloadedAssets));
+
+    archive.pipe(res);
+  } catch (err) {
+    next(err);
+  }
+}
+
+app.get('/api/archive', apiLimiter, handleArchiveRequest);
+app.post('/api/archive', apiLimiter, handleArchiveRequest);
 
 // Centralized error handler: never leak stack traces to client
 app.use((err, req, res, _next) => {

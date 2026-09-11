@@ -4,6 +4,7 @@ const { analyzeSeo } = require('./seo-analyzer');
 const { analyzeSecurityHeaders, parseAndMaskCookies } = require('./security-headers');
 const { getDnsInfo } = require('./dns');
 const { getTlsInfo } = require('./tls');
+const { runDynamicInspection } = require('./browser-runner');
 
 /**
  * Categorizes an HTTP status code into user-friendly status types.
@@ -19,12 +20,28 @@ function getStatusCategory(statusCode) {
 
 /**
  * Main inspection orchestrator.
+ * Supports both Fast HTTP mode (cURL / HTTP fetch) and Dynamic Browser mode (Headless Chromium).
+ *
+ * @param {string} rawUrl Target URL
+ * @param {object} options Optional settings { mode: 'fast' | 'dynamic' }
  */
-async function inspectWebsite(rawUrl) {
+async function inspectWebsite(rawUrl, options = {}) {
   const startTime = Date.now();
+  const mode = options.mode || 'fast';
 
   // 1. Fetch website safely with SSRF protections, browser User-Agent, and redirect tracking
-  const fetchResult = await safeFetch(rawUrl);
+  const fetchPromise = safeFetch(rawUrl);
+
+  // If dynamic mode requested, run headless browser alongside or after
+  let dynamicPromise = Promise.resolve(null);
+  if (mode === 'dynamic') {
+    dynamicPromise = runDynamicInspection(rawUrl, { timeoutMs: 10000 });
+  }
+
+  const [fetchResult, dynamicResult] = await Promise.all([
+    fetchPromise,
+    dynamicPromise
+  ]);
 
   if (!fetchResult.success) {
     return {
@@ -59,18 +76,43 @@ async function inspectWebsite(rawUrl) {
   const finalUrlObj = new URL(finalUrl);
   const isHttps = finalUrlObj.protocol === 'https:';
 
-  // 2. Parallel secondary inspections: DNS, TLS, HTML parsing
+  // 2. Parallel secondary inspections: DNS, TLS
   const [dnsResult, tlsResult] = await Promise.all([
     getDnsInfo(finalUrlObj.hostname),
     isHttps ? getTlsInfo(finalUrlObj.hostname, finalUrlObj.port ? parseInt(finalUrlObj.port, 10) : 443) : Promise.resolve(null)
   ]);
 
-  // 3. Parse HTML and perform SEO analysis if content is HTML
+  // Determine which HTML payload to parse:
+  // In dynamic mode, use rendered DOM if available; otherwise use server HTML
+  let htmlToParse = body;
+  let isDynamicEffective = false;
+  let dynamicMeta = null;
+
+  if (mode === 'dynamic' && dynamicResult) {
+    if (dynamicResult.success && dynamicResult.renderedHtml) {
+      htmlToParse = dynamicResult.renderedHtml;
+      isDynamicEffective = true;
+      dynamicMeta = {
+        enabled: true,
+        screenshot: dynamicResult.screenshot,
+        apiCalls: dynamicResult.apiCalls || [],
+        consoleMessages: dynamicResult.consoleMessages || [],
+        durationMs: dynamicResult.durationMs
+      };
+    } else {
+      dynamicMeta = {
+        enabled: false,
+        error: dynamicResult.error || 'Dynamic browser execution failed. Falling back to server HTML.'
+      };
+    }
+  }
+
+  // 3. Parse HTML and perform SEO analysis
   let parsedHtml = null;
   let seoReport = null;
 
-  if (isHtml && body) {
-    parsedHtml = parseHtml(body, finalUrl);
+  if ((isHtml || isDynamicEffective) && htmlToParse) {
+    parsedHtml = parseHtml(htmlToParse, finalUrl);
     if (parsedHtml) {
       seoReport = analyzeSeo(parsedHtml, finalUrl);
     }
@@ -85,6 +127,7 @@ async function inspectWebsite(rawUrl) {
 
   return {
     success: true,
+    mode: isDynamicEffective ? 'dynamic' : 'fast',
     url: initialUrl,
     finalUrl,
     status: {
@@ -106,7 +149,7 @@ async function inspectWebsite(rawUrl) {
     requestHeaders,
     cookies,
     isHtml,
-    nonHtmlNotice: !isHtml ? `The server returned '${contentType || 'unknown'}'. HTML structure inspection is only available for HTML resources.` : null,
+    nonHtmlNotice: (!isHtml && !isDynamicEffective) ? `The server returned '${contentType || 'unknown'}'. HTML structure inspection is only available for HTML resources.` : null,
     html: parsedHtml,
     seo: seoReport,
     security: {
@@ -115,7 +158,8 @@ async function inspectWebsite(rawUrl) {
     },
     dns: dnsResult,
     tls: tlsResult,
-    rawHtml: isHtml ? body : null
+    rawHtml: (isHtml || isDynamicEffective) ? htmlToParse : null,
+    dynamic: dynamicMeta
   };
 }
 

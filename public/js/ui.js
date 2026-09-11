@@ -124,6 +124,93 @@ const UI = {
   },
 
   /**
+   * Renders Dynamic SPA Execution Insights (screenshot preview, API calls, runtime errors).
+   */
+  renderDynamicInsights(dynamic) {
+    const card = document.getElementById('dynamic-spa-card');
+    if (!card) return;
+
+    if (!dynamic || !dynamic.enabled) {
+      card.style.display = 'none';
+      return;
+    }
+
+    card.style.display = 'block';
+
+    const { screenshot, apiCalls = [], consoleMessages = [], durationMs } = dynamic;
+
+    let apiRowsHtml = '';
+    apiCalls.forEach(call => {
+      const statusBadge = call.status ? (call.status < 400 ? 'badge-pass' : 'badge-fail') : 'badge-neutral';
+      apiRowsHtml += `
+        <tr>
+          <td><span class="badge ${statusBadge}">${call.status || 'Pending'}</span></td>
+          <td class="font-mono" style="font-weight: 600; width: 75px;">${this.escape(call.method || 'GET')}</td>
+          <td class="font-mono" style="word-break: break-all;">
+            <a href="${this.escape(call.url)}" target="_blank" rel="noopener noreferrer">${this.escape(call.url)}</a>
+          </td>
+        </tr>
+      `;
+    });
+
+    let consoleHtml = '';
+    if (consoleMessages.length > 0) {
+      consoleHtml = `
+        <div style="margin-top: 1rem; border-top: 1px solid var(--border-subtle); padding-top: 0.85rem;">
+          <div style="font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 0.5rem;">
+            Captured Runtime Console Messages (${consoleMessages.length})
+          </div>
+          <pre class="dom-tree-container" style="max-height: 160px; font-size: 0.76rem; color: #fbbf24;">${consoleMessages.map(m => `[${this.escape(m.type.toUpperCase())}] ${this.escape(m.text)}`).join('\n')}</pre>
+        </div>
+      `;
+    }
+
+    card.innerHTML = `
+      <div class="card-header">
+        <div class="card-title-group">
+          <div class="card-icon">🖥️</div>
+          <h2 class="card-title">Dynamic SPA Browser Execution</h2>
+        </div>
+        <span class="badge badge-pass">Client JS Hydrated (${durationMs || 0}ms)</span>
+      </div>
+
+      <div class="grid-2-col">
+        ${screenshot ? `
+          <div>
+            <div style="font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 0.5rem;">
+              Viewport Render Preview
+            </div>
+            <div class="dynamic-screenshot-preview">
+              <img src="${screenshot}" alt="Rendered page viewport screenshot" />
+              <div class="dynamic-screenshot-badge">1280x800 Chromium</div>
+            </div>
+          </div>
+        ` : ''}
+        <div>
+          <div style="font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 0.5rem;">
+            Intercepted Dynamic API Requests (${apiCalls.length})
+          </div>
+          <div class="table-responsive" style="max-height: 280px;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Status</th>
+                  <th>Method</th>
+                  <th>Endpoint</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${apiRowsHtml || '<tr><td colspan="3" style="color: var(--text-dim);">No background fetch/XHR API requests observed.</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      ${consoleHtml}
+    `;
+  },
+
+  /**
    * Renders Redirect Chain section if redirects occurred.
    */
   renderRedirectTimeline(redirects) {
@@ -725,6 +812,9 @@ const UI = {
       images.items.forEach(img => {
         imgRows += `
           <tr>
+            <td class="td-checkbox">
+              <input type="checkbox" class="asset-cb" data-url="${this.escape(img.src)}" data-category="images" checked title="Select for .zip bundle" />
+            </td>
             <td class="font-mono" style="word-break: break-all;">
               <a href="${this.escape(img.src)}" target="_blank" rel="noopener noreferrer">${this.escape(img.src)}</a>
             </td>
@@ -746,13 +836,16 @@ const UI = {
           <table class="data-table">
             <thead>
               <tr>
+                <th class="th-checkbox">
+                  <input type="checkbox" class="select-all-category-cb" data-category="images" checked title="Toggle All Images" />
+                </th>
                 <th>Image Source</th>
                 <th>ALT Text</th>
                 <th>Loading</th>
               </tr>
             </thead>
             <tbody>
-              ${imgRows || '<tr><td colspan="3">No images found.</td></tr>'}
+              ${imgRows || '<tr><td colspan="4">No images found.</td></tr>'}
             </tbody>
           </table>
         </div>
@@ -770,6 +863,9 @@ const UI = {
           <table class="data-table">
             <thead>
               <tr>
+                <th class="th-checkbox">
+                  <input type="checkbox" class="select-all-category-cb" data-category="js" checked title="Toggle All Scripts" />
+                </th>
                 <th>#</th>
                 <th>External Script URL</th>
               </tr>
@@ -777,10 +873,13 @@ const UI = {
             <tbody>
               ${scripts.files.map((file, idx) => `
                 <tr>
+                  <td class="td-checkbox">
+                    <input type="checkbox" class="asset-cb" data-url="${this.escape(file)}" data-category="js" checked title="Select for .zip bundle" />
+                  </td>
                   <td style="width: 50px;">${idx + 1}</td>
                   <td class="font-mono"><a href="${this.escape(file)}" target="_blank" rel="noopener noreferrer">${this.escape(file)}</a></td>
                 </tr>
-              `).join('') || '<tr><td colspan="2">No external scripts found.</td></tr>'}
+              `).join('') || '<tr><td colspan="3">No external scripts found.</td></tr>'}
             </tbody>
           </table>
         </div>
@@ -797,6 +896,9 @@ const UI = {
           <table class="data-table">
             <thead>
               <tr>
+                <th class="th-checkbox">
+                  <input type="checkbox" class="select-all-category-cb" data-category="css" checked title="Toggle All Stylesheets" />
+                </th>
                 <th>#</th>
                 <th>Stylesheet Link</th>
               </tr>
@@ -804,14 +906,22 @@ const UI = {
             <tbody>
               ${stylesheets.files.map((file, idx) => `
                 <tr>
+                  <td class="td-checkbox">
+                    <input type="checkbox" class="asset-cb" data-url="${this.escape(file)}" data-category="css" checked title="Select for .zip bundle" />
+                  </td>
                   <td style="width: 50px;">${idx + 1}</td>
                   <td class="font-mono"><a href="${this.escape(file)}" target="_blank" rel="noopener noreferrer">${this.escape(file)}</a></td>
                 </tr>
-              `).join('') || '<tr><td colspan="2">No external stylesheets found.</td></tr>'}
+              `).join('') || '<tr><td colspan="3">No external stylesheets found.</td></tr>'}
             </tbody>
           </table>
         </div>
       `;
+    }
+
+    // Initialize interactive AssetManager for checkbox selections
+    if (window.AssetManager) {
+      window.AssetManager.init(html);
     }
 
     // Render DOM Tree
