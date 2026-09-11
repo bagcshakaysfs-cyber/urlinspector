@@ -45,6 +45,7 @@
   <main class="container">
     <!-- Hero & Search Input -->
     <section class="hero-section">
+      <div class="hero-badge-tag">Developer Inspection Tool</div>
       <h2 class="hero-title">
         Inspect any website's <span class="gradient-text">HTTP &amp; HTML</span> status
       </h2>
@@ -235,6 +236,7 @@
             </div>
           </div>
           <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+            <button class="btn-sm" id="btn-wrap-html" title="Toggle line wrapping">Wrap Lines</button>
             <button class="btn-sm" id="btn-copy-html">Copy HTML</button>
             <button class="btn-sm" id="btn-download-html">Download .html</button>
             <button class="btn-sm" id="btn-fullscreen-html">Fullscreen</button>
@@ -245,7 +247,7 @@
           <div class="code-line-numbers" id="code-line-nums"></div>
           <pre class="code-content-area" id="code-content"></pre>
         </div>
-        <div style="padding: 0.75rem 1.25rem; background: #080b12; border-top: 1px solid var(--border-subtle); font-size: 0.75rem; color: var(--text-dim);">
+        <div class="code-viewer-footer">
           Notice: HTML received from the public HTTP response. Dynamically rendered browser-only content may not appear here.
         </div>
       </div>
@@ -260,12 +262,12 @@
         </div>
         <div class="grid-2-col">
           <div>
-            <div style="font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Request Headers Sent</div>
-            <pre class="dom-tree-container" id="raw-request-pre" style="max-height: 250px; color: #a5b4fc;"></pre>
+            <div style="font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; font-weight: 600;">Request Headers Sent</div>
+            <pre class="dom-tree-container" id="raw-request-pre" style="max-height: 250px;"></pre>
           </div>
           <div>
-            <div style="font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Response Headers Received</div>
-            <pre class="dom-tree-container" id="raw-response-pre" style="max-height: 250px; color: #86efac;"></pre>
+            <div style="font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; font-weight: 600;">Response Headers Received</div>
+            <pre class="dom-tree-container" id="raw-response-pre" style="max-height: 250px;"></pre>
           </div>
         </div>
       </div>
@@ -315,13 +317,13 @@
       </p>
 
       <h3 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text-main);">Endpoint</h3>
-      <div style="background: var(--bg-code); padding: 0.65rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); font-family: var(--font-mono); font-size: 0.88rem; color: var(--accent-cyan); margin-bottom: 1rem;">
-        GET /api/inspect?url={target_url}
+      <div style="background: var(--bg-code); padding: 0.65rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-main); margin-bottom: 1rem;">
+        <code>GET /api/inspect?url={target_url}</code>
       </div>
 
       <h3 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text-main);">cURL Example</h3>
       <div style="position: relative;">
-        <pre class="dom-tree-container" id="curl-sample-code" style="max-height: 120px; color: #fde047; margin-bottom: 0.75rem;">curl "https://web-inspector.herokuapp.com/api/inspect?url=https://example.com"</pre>
+        <pre class="dom-tree-container" id="curl-sample-code" style="max-height: 120px; margin-bottom: 0.75rem;">curl "https://web-inspector.herokuapp.com/api/inspect?url=https://example.com"</pre>
         <button class="btn-sm" id="btn-copy-curl" style="margin-bottom: 1rem;">Copy cURL</button>
       </div>
 

@@ -57,10 +57,10 @@ const UI = {
       <div class="status-header-row">
         <div class="status-badge-lg ${badgeClass}">
           <span class="pulse-dot"></span>
-          <span>● ${statusLabel}</span>
+          <span>${statusLabel}</span>
         </div>
         <div style="display:flex; gap: 0.5rem; align-items: center;">
-          <span style="font-size: 0.85rem; color: var(--text-dim);">${status.httpVersion || 'HTTP/1.1'}</span>
+          <span style="font-size: 0.82rem; color: var(--text-dim); font-family: var(--font-mono);">${status.httpVersion || 'HTTP/1.1'}</span>
         </div>
       </div>
 
@@ -79,7 +79,7 @@ const UI = {
         </div>
         <div class="metric-box">
           <div class="metric-label">Protocol</div>
-          <div class="metric-val" style="color: ${protocol === 'HTTPS' ? 'var(--accent-cyan)' : 'var(--accent-amber)'};">
+          <div class="metric-val">
             ${protocol}
           </div>
         </div>
@@ -251,7 +251,7 @@ const UI = {
             </tr>
             <tr>
               <td><strong>Canonical URL</strong></td>
-              <td class="font-mono">${head.canonical ? `<a href="${this.escape(head.canonical)}" target="_blank" rel="noopener noreferrer" style="color: var(--accent-cyan);">${this.escape(head.canonical)}</a>` : 'None declared'}</td>
+              <td class="font-mono">${head.canonical ? `<a href="${this.escape(head.canonical)}" target="_blank" rel="noopener noreferrer">${this.escape(head.canonical)}</a>` : 'None declared'}</td>
             </tr>
             <tr>
               <td><strong>Robots Meta</strong></td>
@@ -487,14 +487,14 @@ const UI = {
       dnsHtml = `
         <div style="display: flex; flex-direction: column; gap: 0.75rem;">
           <div>
-            <span style="font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase;">A Records (IPv4)</span>
-            <div class="font-mono" style="color: var(--accent-cyan); margin-top: 0.2rem; font-size: 0.85rem;">
+            <span style="font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">A Records (IPv4)</span>
+            <div class="font-mono" style="margin-top: 0.2rem; font-size: 0.82rem; color: var(--text-main);">
               ${records.a.length > 0 ? records.a.map(ip => `<div>${this.escape(ip)}</div>`).join('') : '<span style="color: var(--text-dim)">None</span>'}
             </div>
           </div>
           <div>
-            <span style="font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase;">AAAA Records (IPv6)</span>
-            <div class="font-mono" style="color: var(--accent-purple); margin-top: 0.2rem; font-size: 0.85rem;">
+            <span style="font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">AAAA Records (IPv6)</span>
+            <div class="font-mono" style="margin-top: 0.2rem; font-size: 0.82rem; color: var(--text-main);">
               ${records.aaaa.length > 0 ? records.aaaa.map(ip => `<div>${this.escape(ip)}</div>`).join('') : '<span style="color: var(--text-dim)">None</span>'}
             </div>
           </div>
@@ -600,7 +600,7 @@ const UI = {
       const valStr = Array.isArray(val) ? val.join('\n') : String(val);
       rowsHtml += `
         <tr class="header-row" data-key="${this.escape(key.toLowerCase())}" data-val="${this.escape(valStr.toLowerCase())}">
-          <td class="font-mono" style="color: var(--accent-cyan); width: 35%;"><strong>${this.escape(key)}</strong></td>
+          <td class="font-mono" style="width: 35%; color: var(--text-main);"><strong>${this.escape(key)}</strong></td>
           <td class="font-mono" style="word-break: break-all;">${this.escape(valStr)}</td>
         </tr>
       `;
@@ -676,7 +676,7 @@ const UI = {
       links.items.forEach(l => {
         linkRows += `
           <tr class="asset-link-row" data-url="${this.escape(l.url.toLowerCase())}">
-            <td class="font-mono"><a href="${this.escape(l.url)}" target="_blank" rel="noopener noreferrer" style="color: var(--accent-cyan);">${this.escape(l.url)}</a></td>
+            <td class="font-mono"><a href="${this.escape(l.url)}" target="_blank" rel="noopener noreferrer">${this.escape(l.url)}</a></td>
             <td><span class="badge ${l.type === 'Internal' ? 'badge-info' : 'badge-neutral'}">${l.type}</span></td>
             <td class="font-mono">${this.escape(l.rel)}</td>
             <td><span class="badge ${l.isNofollow ? 'badge-warning' : 'badge-neutral'}">${l.isNofollow ? 'nofollow' : 'follow'}</span></td>
@@ -726,7 +726,7 @@ const UI = {
         imgRows += `
           <tr>
             <td class="font-mono" style="word-break: break-all;">
-              <a href="${this.escape(img.src)}" target="_blank" rel="noopener noreferrer" style="color: var(--accent-cyan);">${this.escape(img.src)}</a>
+              <a href="${this.escape(img.src)}" target="_blank" rel="noopener noreferrer">${this.escape(img.src)}</a>
             </td>
             <td>
               ${img.hasAlt ? `<span style="color: var(--accent-emerald);">✓ ${this.escape(img.alt)}</span>` : `<span class="badge badge-fail">Missing ALT</span>`}
@@ -778,7 +778,7 @@ const UI = {
               ${scripts.files.map((file, idx) => `
                 <tr>
                   <td style="width: 50px;">${idx + 1}</td>
-                  <td class="font-mono"><a href="${this.escape(file)}" target="_blank" rel="noopener noreferrer" style="color: var(--accent-cyan);">${this.escape(file)}</a></td>
+                  <td class="font-mono"><a href="${this.escape(file)}" target="_blank" rel="noopener noreferrer">${this.escape(file)}</a></td>
                 </tr>
               `).join('') || '<tr><td colspan="2">No external scripts found.</td></tr>'}
             </tbody>
@@ -805,7 +805,7 @@ const UI = {
               ${stylesheets.files.map((file, idx) => `
                 <tr>
                   <td style="width: 50px;">${idx + 1}</td>
-                  <td class="font-mono"><a href="${this.escape(file)}" target="_blank" rel="noopener noreferrer" style="color: var(--accent-cyan);">${this.escape(file)}</a></td>
+                  <td class="font-mono"><a href="${this.escape(file)}" target="_blank" rel="noopener noreferrer">${this.escape(file)}</a></td>
                 </tr>
               `).join('') || '<tr><td colspan="2">No external stylesheets found.</td></tr>'}
             </tbody>
@@ -834,9 +834,17 @@ const UI = {
     return escaped
       // HTML comments
       .replace(/(&lt;!--[\s\S]*?--&gt;)/g, '<span class="hl-comment">$1</span>')
+      // DOCTYPE
+      .replace(/(&lt;!(?:doctype|DOCTYPE)[\s\S]*?&gt;)/gi, '<span class="hl-doctype">$1</span>')
       // HTML tags and attributes
-      .replace(/(&lt;\/?)([a-zA-Z0-9\-]+)([\s\S]*?)(&gt;)/g, (_match, open, tagName, attrs, close) => {
-        const highlightedAttrs = attrs.replace(/([a-zA-Z0-9\-:]+)(=)(".*?"|'.*?'|&quot;.*?&quot;)/g, '<span class="hl-attr">$1</span>$2<span class="hl-val">$3</span>');
+      .replace(/(&lt;\/?)([a-zA-Z0-9\-:]+)((?:[^&>]|&(?!gt;))*?)(\/?&gt;)/g, (_match, open, tagName, attrs, close) => {
+        const highlightedAttrs = attrs.replace(/([a-zA-Z0-9\-:@.]+)(?:(=)(&quot;[\s\S]*?&quot;|&#039;[\s\S]*?&#039;|[^\s&>]+))?/g, (attrMatch, attrName, eq, attrVal) => {
+          if (!attrName) return attrMatch;
+          if (eq && attrVal !== undefined) {
+            return `<span class="hl-attr">${attrName}</span>${eq}<span class="hl-val">${attrVal}</span>`;
+          }
+          return `<span class="hl-attr">${attrName}</span>`;
+        });
         return `${open}<span class="hl-tag">${tagName}</span>${highlightedAttrs}${close}`;
       });
   },
@@ -855,7 +863,7 @@ const UI = {
 
     card.style.display = 'block';
 
-    const lines = rawHtml.split('\n');
+    const lines = rawHtml.split(/\r?\n/);
     const totalLines = lines.length;
     const lineNumbersHtml = Array.from({ length: totalLines }, (_, i) => i + 1).join('\n');
 
@@ -872,9 +880,20 @@ const UI = {
 
     const lineNumsElem = document.getElementById('code-line-nums');
     const codeAreaElem = document.getElementById('code-content');
+    const codeBody = document.getElementById('code-viewer-body');
 
     if (lineNumsElem) lineNumsElem.textContent = lineNumbersHtml;
     if (codeAreaElem) codeAreaElem.innerHTML = highlightedContent;
+
+    // Line wrap toggle
+    const wrapBtn = document.getElementById('btn-wrap-html');
+    if (wrapBtn && codeBody) {
+      wrapBtn.onclick = () => {
+        const isWrapped = codeBody.classList.toggle('wrap-lines');
+        wrapBtn.classList.toggle('active', isWrapped);
+        wrapBtn.textContent = isWrapped ? 'Unwrap Lines' : 'Wrap Lines';
+      };
+    }
 
     // Search inside code viewer
     const searchInput = document.getElementById('search-html-input');
@@ -931,7 +950,6 @@ const UI = {
 
     // Collapse toggle
     const collapseBtn = document.getElementById('btn-collapse-html');
-    const codeBody = document.getElementById('code-viewer-body');
     if (collapseBtn && codeBody) {
       collapseBtn.onclick = () => {
         const isHidden = codeBody.style.display === 'none';
